@@ -36,6 +36,7 @@ from .services.sso import SSO_COMMANDS, handle_sso_command
 from .settings import handle_option_command, options_command_list, options_schema_list
 from .tools import NotificationQueue, RequestLoggingTool, TaskManager, \
     prepare_url_prefix, str_to_bool
+from .validators import url_validator
 
 try:
     import cherrypy
@@ -413,6 +414,10 @@ class Module(MgrModule, CherryPyConfig):
 
     def handle_command(self, inbuf, cmd):
         # pylint: disable=too-many-return-statements
+        if cmd['prefix'] == 'dashboard set-grafana-api-url':
+            if not url_validator(cmd['value']):
+                return (-errno.EINVAL, '', 'invalid value. \'{0}\' is not a valid URL'
+                        .format(cmd['value']))
         res = handle_option_command(cmd, inbuf)
         if res[0] != -errno.ENOSYS:
             return res
