@@ -9,6 +9,7 @@ from typing import Any
 from mgr_module import CLICheckNonemptyFileInput
 
 from . import mgr
+from .validators import url_validator
 
 
 class Setting:
@@ -235,6 +236,10 @@ def handle_option_command(cmd, inbuf):
     elif cmd['prefix'].startswith('dashboard get'):
         return 0, str(getattr(Settings, opt['name'])), ''
     elif cmd['prefix'].startswith('dashboard set'):
+        if cmd['prefix'] == 'dashboard set-grafana-api-url':
+            if not url_validator(cmd['value']):
+                return (-errno.EINVAL, '', 'invalid value. \'{0}\' is not a valid URL'
+                        .format(cmd['value']))
         if handles_secret(cmd['prefix']):
             value, stdout, stderr = get_secret(inbuf=inbuf)
             if stderr:
