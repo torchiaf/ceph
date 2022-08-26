@@ -158,6 +158,9 @@ export class OsdService {
 
   safeToDestroy(ids: string) {
     interface SafeToDestroyResponse {
+      active: number[];
+      missing_stats: number[];
+      stored_pgs: number[];
       is_safe_to_destroy: boolean;
       message?: string;
     }
