@@ -402,8 +402,17 @@ class Osd(RESTController):
 
     @RESTController.Resource('GET')
     def devices(self, svc_id):
+        devices: list = CephService.send_command(
+            'mon', 'device ls-by-daemon', who='osd.{}'.format(svc_id))
+        modules = CephService.send_command('mon', 'mgr module ls')
+
+        life_expectancy_enabled = any(
+            item.startswith('diskprediction_') for item in modules['enabled_modules'])
+        for device in devices:
+            device['life_expectancy_enabled'] = life_expectancy_enabled
+
         # (str) -> dict
-        return CephService.send_command('mon', 'device ls-by-daemon', who='osd.{}'.format(svc_id))
+        return devices
 
 
 @APIRouter('/osd/flags', Scope.OSD)
