@@ -69,14 +69,14 @@
              let-actionDescription="actionDescription"
              let-osdIds="osdIds">
   <div *ngIf="!safeToPerform"
-       class="danger">
+       class="danger mb-3">
     <cd-alert-panel type="warning">
       <ng-container i18n>
         The {selection.hasSingleSelection, select, true {OSD is} other {OSDs are}} not safe to be
         {{ actionDescription }}!
       </ng-container>
       <br>
-      <ul class="warnings-list">
+      <ul class="mb-0 pl-4">
         <li *ngIf="active.length > 0"
              i18n>
           {selection.hasSingleSelection, select, true {} other {{{ active | join }} : }}
@@ -100,7 +100,7 @@
     </cd-alert-panel>
   </div>
   <div *ngIf="safeToPerform"
-       class="danger">
+       class="danger mb-3">
     <cd-alert-panel type="info">
       <ng-container i18n>
         The {selection.hasSingleSelection, select, true {OSD is} other {OSDs are}}
