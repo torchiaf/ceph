@@ -402,7 +402,8 @@ class Osd(RESTController):
 
     @RESTController.Resource('GET')
     def devices(self, svc_id):
-        devices: list = CephService.send_command(
+        # type: (str) -> Union[list, str]
+        devices: Union[list, str] = CephService.send_command(
             'mon', 'device ls-by-daemon', who='osd.{}'.format(svc_id))
         modules = CephService.send_command('mon', 'mgr module ls')
 
@@ -411,7 +412,6 @@ class Osd(RESTController):
         for device in devices:
             device['life_expectancy_enabled'] = life_expectancy_enabled
 
-        # (str) -> dict
         return devices
 
 
