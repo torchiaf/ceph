@@ -144,6 +144,17 @@ class HandleCommandResult(NamedTuple):
 
 class MonCommandFailed(RuntimeError): pass
 
+class ValidationError(Exception):
+    """
+    General Validation Error for module option value
+    """
+
+    def __init__(self,
+                 msg: str,
+                 errno: int = -errno.EINVAL) -> None:
+        super(Exception, self).__init__(msg)
+        self.errno = errno
+
 
 class OSDMap(ceph_module.BasePyOSDMap):
     def get_epoch(self) -> int:
@@ -488,6 +499,7 @@ class Option(Dict):
             tags: Optional[List[str]] = None,
             see_also: Optional[List[str]] = None,
             runtime: bool = False,
+            validator: Callable[[any], bool] = None
     ):
         super(Option, self).__init__(
             (k, v) for k, v in vars().items()
@@ -1512,6 +1524,20 @@ class MgrModule(ceph_module.BaseMgrModule, MgrModuleLoggingMixin):
             raise RuntimeError("Config option '{0}' is not in {1}.MODULE_OPTIONS".
                                format(key, self.__class__.__name__))
 
+    def _validate_module_option_value(self, val, validator, default = None):
+        """
+        Validate the value of a persistent configuration setting
+
+        :param str val:
+        :param str validator:
+        :param str default:
+        """
+        if (default != None and
+            default != val and
+            not validator(val)):
+            raise ValidationError('Value: \'{0}\' is not valid'
+                                  .format(val))
+
     def _get_module_option(self,
                            key: str,
                            default: OptionValue,
@@ -1528,7 +1554,22 @@ class MgrModule(ceph_module.BaseMgrModule, MgrModuleLoggingMixin):
         Retrieve the value of a persistent configuration setting
         """
         self._validate_module_option(key)
-        return self._get_module_option(key, default)
+        
+        validator = None
+        try:
+            validator = next(o['validator'] for o in self.MODULE_OPTIONS if o['name'] == key)
+        except (StopIteration, KeyError):
+            pass
+
+        val = self._get_module_option(key, default)
+        
+        if validator:
+            try:
+                self._validate_module_option_value(val, validator)
+            except ValidationError as e:
+                return e.errno, '', e.args[0]
+        
+        return val
 
     def get_module_option_ex(self, module: str,
                              key: str,
@@ -1584,6 +1625,19 @@ class MgrModule(ceph_module.BaseMgrModule, MgrModuleLoggingMixin):
         :type val: str | None
         """
         self._validate_module_option(key)
+        
+        validator = None
+        try:            
+            validator, default = next((o['validator'], o['default']) for o in self.MODULE_OPTIONS if o['name'] == key)
+        except (StopIteration, KeyError):
+            pass
+        
+        if validator:
+            try:
+                self._validate_module_option_value(val, validator, default)
+            except ValidationError as e:
+                return e.errno, '', e.args[0]
+
         return self._set_module_option(key, val)
 
     def set_module_option_ex(self, module: str, key: str, val: OptionValue) -> None:

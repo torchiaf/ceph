@@ -33,9 +33,10 @@ from .services.auth import AuthManager, AuthManagerTool, JwtManager
 from .services.exception import dashboard_exception_handler
 from .services.rgw_client import configure_rgw_credentials
 from .services.sso import SSO_COMMANDS, handle_sso_command
-from .settings import handle_option_command, options_command_list, options_schema_list
+from .settings import OptionCommandTool
 from .tools import NotificationQueue, RequestLoggingTool, TaskManager, \
     prepare_url_prefix, str_to_bool
+from .validators import valid_url
 
 try:
     import cherrypy
@@ -68,6 +69,8 @@ os._exit = os_exit_noop
 
 logger = logging.getLogger(__name__)
 
+import sys ; sys.executable = '/usr/bin/python3'     #important in CEPH
+import debugpy
 
 class CherryPyConfig(object):
     """
@@ -231,6 +234,246 @@ class Module(MgrModule, CherryPyConfig):
     dashboard module entrypoint
     """
 
+    MODULE_OPTIONS = [
+        Option(
+            name='server_addr',
+            type='str',
+            default=get_default_addr()
+        ),
+        Option(
+            name='server_port',
+            type='int',
+            default=8080
+        ),
+        Option(
+            name='ssl_server_port',
+            type='int',
+            default=8443
+        ),
+        Option(
+            name='jwt_token_ttl',
+            type='int',
+            default=28800
+        ),
+        Option(
+            name='url_prefix',
+            type='str',
+            default=''
+        ),
+        Option(
+            name='key_file',
+            type='str',
+            default=''
+        ),
+        Option(
+            name='crt_file',
+            type='str',
+            default=''
+        ),
+        Option(
+            name='ssl',
+            type='bool',
+            default=True
+        ),
+        Option(
+            name='standby_behaviour',
+            type='str',
+            default='redirect',
+            enum_allowed=['redirect', 'error']
+        ),
+        Option(
+            name='standby_error_status_code',
+            type='int',
+            default=500,
+            min=400,
+            max=599
+        )
+    ]
+    
+    NATIVE_OPTIONS = [
+        Option(
+            'ENABLE_BROWSABLE_API',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'REST_REQUESTS_TIMEOUT',
+            type='int',
+            default=45
+        ),
+        Option(
+            'ACCOUNT_LOCKOUT_ATTEMPTS',
+            type='int',
+            default=10
+        ),
+        Option(
+            'AUDIT_API_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'AUDIT_API_LOG_PAYLOAD',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'RGW_API_ACCESS_KEY',
+            type='',
+            default=''
+        ),
+        Option(
+            'RGW_API_SECRET_KEY',
+            type='',
+            default=''
+        ),
+        Option(
+            'RGW_API_ADMIN_RESOURCE',
+            type='str',
+            default='admin'
+        ),
+        Option(
+            'RGW_API_SSL_VERIFY',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'GRAFANA_FRONTEND_API_URL',
+            type='str',
+            default=''
+        ),
+        Option(
+            name='GRAFANA_API_URL',
+            type='str', default='',
+            validator=valid_url
+        ),
+        Option(
+            'GRAFANA_API_USERNAME',
+            type='str',
+            default='admin'
+        ),
+        Option(
+            'GRAFANA_API_PASSWORD',
+            type='str',
+            default='admin'
+        ),
+        Option(
+            'GRAFANA_API_SSL_VERIFY',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'GRAFANA_UPDATE_DASHBOARDS',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'GANESHA_CLUSTERS_RADOS_POOL_NAMESPACE',
+            type='str',
+            default=''
+        ),
+        Option(
+            'PROMETHEUS_API_HOST',
+            type='str',
+            default=''
+        ),
+        Option(
+            'PROMETHEUS_API_SSL_VERIFY',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'ALERTMANAGER_API_HOST',
+            type='str',
+            default=''
+        ),
+        Option(
+            'ALERTMANAGER_API_SSL_VERIFY',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'ISCSI_API_SSL_VERIFICATION',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'USER_PWD_EXPIRATION_SPAN',
+            type='int',
+            default=0
+        ),
+        Option(
+            'USER_PWD_EXPIRATION_WARNING_1',
+            type='int',
+            default=10
+        ),
+        Option(
+            'USER_PWD_EXPIRATION_WARNING_2',
+            type='int',
+            default=5
+        ),
+        Option(
+            'PWD_POLICY_ENABLED',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'PWD_POLICY_CHECK_LENGTH_ENABLED',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'PWD_POLICY_CHECK_OLDPWD_ENABLED',
+            type='bool',
+            default=True
+        ),
+        Option(
+            'PWD_POLICY_CHECK_USERNAME_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'PWD_POLICY_CHECK_EXCLUSION_LIST_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'PWD_POLICY_CHECK_COMPLEXITY_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'PWD_POLICY_CHECK_SEQUENTIAL_CHARS_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'PWD_POLICY_CHECK_REPETITIVE_CHARS_ENABLED',
+            type='bool',
+            default=False
+        ),
+        Option(
+            'PWD_POLICY_MIN_LENGTH',
+            type='int',
+            default=8
+        ),
+        Option(
+            'PWD_POLICY_MIN_COMPLEXITY',
+            type='int',
+            default=10
+        ),
+        Option(
+            'PWD_POLICY_EXCLUSION_LIST',
+            type='str',
+            default=','.join(['osd', 'host', 'dashboard', 'pool',
+                              'block', 'nfs', 'ceph', 'monitors',
+                              'gateway', 'logs', 'crush', 'maps'])
+        )
+    ]
+    
+    MODULE_OPTIONS.extend(NATIVE_OPTIONS)
+    for options in PLUGIN_MANAGER.hook.get_options() or []:
+        MODULE_OPTIONS.extend(options)
+        
     COMMANDS = [
         {
             'cmd': 'dashboard set-jwt-token-ttl '
@@ -252,29 +495,13 @@ class Module(MgrModule, CherryPyConfig):
             "cmd": "dashboard grafana dashboards update",
             "desc": "Push dashboards to Grafana",
             "perm": "w",
-        },
+        }
     ]
-    COMMANDS.extend(options_command_list())
+    
+    _option_command_tool = OptionCommandTool(NATIVE_OPTIONS)
+    COMMANDS.extend(_option_command_tool.options_command_list())
     COMMANDS.extend(SSO_COMMANDS)
     PLUGIN_MANAGER.hook.register_commands()
-
-    MODULE_OPTIONS = [
-        Option(name='server_addr', type='str', default=get_default_addr()),
-        Option(name='server_port', type='int', default=8080),
-        Option(name='ssl_server_port', type='int', default=8443),
-        Option(name='jwt_token_ttl', type='int', default=28800),
-        Option(name='url_prefix', type='str', default=''),
-        Option(name='key_file', type='str', default=''),
-        Option(name='crt_file', type='str', default=''),
-        Option(name='ssl', type='bool', default=True),
-        Option(name='standby_behaviour', type='str', default='redirect',
-               enum_allowed=['redirect', 'error']),
-        Option(name='standby_error_status_code', type='int', default=500,
-               min=400, max=599)
-    ]
-    MODULE_OPTIONS.extend(options_schema_list())
-    for options in PLUGIN_MANAGER.hook.get_options() or []:
-        MODULE_OPTIONS.extend(options)
 
     NOTIFY_TYPES = [NotifyType.clog]
 
@@ -282,6 +509,9 @@ class Module(MgrModule, CherryPyConfig):
         lambda: collections.deque(maxlen=10)))  # type: dict
 
     def __init__(self, *args, **kwargs):
+        
+        debugpy.listen(('0.0.0.0', 5680))
+        
         super(Module, self).__init__(*args, **kwargs)
         CherryPyConfig.__init__(self)
 
@@ -445,8 +675,11 @@ class Module(MgrModule, CherryPyConfig):
         return HandleCommandResult(stdout='Login banner removed')
 
     def handle_command(self, inbuf, cmd):
+        
+        debugpy.breakpoint()
+    
         # pylint: disable=too-many-return-statements
-        res = handle_option_command(cmd, inbuf)
+        res = self._option_command_tool.handle_option_command(cmd, inbuf)
         if res[0] != -errno.ENOSYS:
             return res
         res = handle_sso_command(cmd)
